@@ -1,0 +1,29 @@
+Boost.Build/Extensions
+======================
+
+Introduction:
+-------------
+
+Usage:
+------
+
+    import modules ;
+    
+    modules.load extensions : : /path/to/build.extensions ;
+    import extensions ;
+    extensions.init ;
+    
+    import extensions/some-modules ;
+
+License:
+--------
+
+             Copyright Kohei Takahashi 2012.
+    Distributed under the Boost Software License, Version 1.0.
+       (See accompanying file LICENSE_1_0.txt or copy at
+             http://www.boost.org/LICENSE_1_0.txt)
+
+Author:
+-------
+
+> * Kohei Takahashi (flast@flast.jp)

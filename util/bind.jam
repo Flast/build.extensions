@@ -1,0 +1,103 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import "class" ;
+import indirect ;
+import numbers ;
+
+class extensions/bind--placeholder
+{
+    rule __init__ ( number )
+    {
+        self.number = $(number) ;
+    }
+
+    rule number ( )
+    {
+        return $(self.number) ;
+    }
+}
+
+rule placeholder ( number )
+{
+    return [ class.new extensions/bind--placeholder $(number) ] ;
+}
+
+class extensions/bind--args-expander
+{
+    import "class" ;
+    import numbers ;
+
+    rule __init__ ( * )
+    {
+        for local i in [ numbers.range 1 9 ]
+        {
+            self.$(i) = $($(i)) ;
+        }
+    }
+
+    rule exec ( arg )
+    {
+        if [ class.is-a $(arg) : extensions/bind--placeholder ]
+        {
+            local i = [ $(arg).number ] ;
+            arg = $(self.$(i)) ;
+        }
+        return $(arg) ;
+    }
+}
+
+class extensions/bind--binder
+{
+    import "class" ;
+    import numbers ;
+    import sequence ;
+    import indirect ;
+
+    rule __init__ ( indirect : args )
+    {
+        self.indirect = $(indirect) ;
+        self.args = $(args) ;
+    }
+
+    rule exec ( * )
+    {
+        local expander = [ class.new extensions/bind--args-expander
+                              $(1) : $(2) : $(3) : $(4) : $(5)
+                            : $(6) : $(7) : $(8) : $(9) ] ;
+
+        local range = [ numbers.range 1 9 ] ;
+        local _$(range) ;
+        for local i in $(range)
+        {
+            _$(i) = [ sequence.transform $(expander).exec
+              : [ $(self.args).get-at $(i) ] ] ;
+        }
+
+        indirect.call $(self.indirect)
+            $(_1) : $(_2) : $(_3) : $(_4) : $(_5)
+          : $(_6) : $(_7) : $(_8) : $(_9) ;
+    }
+}
+
+local rule make-binder ( * )
+{
+    local b = [ class.new extensions/bind--binder
+                    $(1) : $(2) : $(3) : $(4) : $(5)
+                  : $(6) : $(7) : $(8) : $(9) ] ;
+    return $(b).exec ;
+}
+
+rule binding ( rulename arg * : * )
+{
+    local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
+    local m = [ indirect.make make-binder $(r) : $(__name__) ] ;
+    local args = [ class.new vector [ class.new vector $(arg) ] ] ;
+    for local i in [ numbers.range 2 9 ]
+    {
+        $(args).push-back [ class.new vector $($(i)) ] ;
+    }
+    return [ indirect.call $(m) : $(args) ] ;
+}

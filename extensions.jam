@@ -1,0 +1,52 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import modules ;
+import path ;
+
+.$(__name__)-already-initialized = ;
+
+.$(__name__)-subdirs =
+  util
+  ;
+
+rule init ( )
+{
+    if ! $(.$(__name__)-already-initialized)
+    {
+        local file-path = [ modules.binding $(__name__) ] ;
+        .$(__name__)-already-initialized = $(file-path) ;
+
+        local whereami = $(file-path:DT) ;
+        preloading-modules $(whereami) ;
+    }
+}
+
+local rule preloading-module ( path : search ? )
+{
+    if ! $(root)
+    {
+        search = [ path.parent $(path) ] ;
+    }
+
+    local file-name = [ path.basename $(path) ] ;
+    local module-name = [ MATCH ^(.*)\.jam : $(file-name) ] ;
+
+    # Register extension style (extensions/...) module name. Hereby import rule
+    # can lookup extension style module name.
+    modules.load $(__name__)/$(module-name) : $(file-name) : $(search) ;
+}
+
+local rule preloading-modules ( where )
+{
+    for local sub in $(.$(__name__)-subdirs)
+    {
+        sub = [ path.join $(where) $(sub) ] ;
+        for local m in [ path.glob $(sub) : *.jam ]
+        {
+            preloading-module $(m) : $(sub) ;
+        }
+    }
+}
