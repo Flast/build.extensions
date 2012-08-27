@@ -25,6 +25,16 @@ rule placeholder ( number )
     return [ class.new extensions/bind--placeholder $(number) ] ;
 }
 
+rule _1 ( ) { return [ placeholder 1 ] ; }
+rule _2 ( ) { return [ placeholder 2 ] ; }
+rule _3 ( ) { return [ placeholder 3 ] ; }
+rule _4 ( ) { return [ placeholder 4 ] ; }
+rule _5 ( ) { return [ placeholder 5 ] ; }
+rule _6 ( ) { return [ placeholder 6 ] ; }
+rule _7 ( ) { return [ placeholder 7 ] ; }
+rule _8 ( ) { return [ placeholder 8 ] ; }
+rule _9 ( ) { return [ placeholder 9 ] ; }
+
 class extensions/bind--args-expander
 {
     import "class" ;
