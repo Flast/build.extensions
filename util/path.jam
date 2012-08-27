@@ -1,0 +1,28 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import errors ;
+import os ;
+import path ;
+
+rule make ( native )
+{
+    native = [ path.make $(native) ] ;
+
+    # tilde-prefix will replace to home dir in UNIX system.
+    local tilde = [ MATCH ^(~)([^\/]*)(.*) : $(native) ] ;
+    if $(tilde[1])
+    {
+        local home = [ os.home-directories ] ;
+        if $(tilde[2])
+        {
+            errors.error "~user does not support yet" ;
+        }
+        # tilde[3] will expand slash-prefixed or none.
+        native = $(home:T)$(tilde[3]:E=) ;
+    }
+
+    return $(native) ;
+}
