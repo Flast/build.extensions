@@ -101,11 +101,12 @@ local rule make-binder ( indirect : args )
 rule binding ( rulename arg * : * )
 {
     local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
-    local m = [ indirect.make make-binder $(r) : $(__name__) ] ;
+
     local args = [ class.new vector [ class.new vector $(arg) ] ] ;
     for local i in [ numbers.range 2 9 ]
     {
         $(args).push-back [ class.new vector $($(i)) ] ;
     }
-    return [ indirect.call $(m) : $(args) ] ;
+
+    return [ make-binder $(r) : $(args) ] ;
 }
