@@ -1,0 +1,30 @@
+# cuda.jam Boost.Build Jam file for extended file type.
+
+# Copyright (c) 2010 - 2011 Kohei Takahashi (Flast).
+# Distributed under the MIT license. for more detail see COPYING.
+
+import type ;
+import scanner ;
+
+
+# .cu scanner
+class cuda-scanner : c-scanner
+{
+}
+scanner.register cuda-scanner : include ;
+
+
+
+# .ptx Parallel Thread Execution
+class ptx-scanner : scanner
+{
+}
+scanner.register ptx-scanner : include ;
+
+
+type.register CUDA : cu ;
+type.register PTX : ptx ;
+type.register CUBIN : cubin ;
+
+type.set-scanner CUDA : cuda-scanner ;
+type.set-scanner PTX : ptx-scanner ;
