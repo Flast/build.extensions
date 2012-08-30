@@ -23,7 +23,7 @@ local rule extensions-root ( )
 }
 
 local rule import-really ( module-names + : rule-opt * : rename-opt *
-  : search : prefix : caller-module )
+  : search * : prefix : caller-module )
 {
     module $(caller-module)
     {
