@@ -12,41 +12,36 @@ import path ;
   util
   ;
 
-rule init ( )
+local rule extensions-root ( )
 {
     if ! $(.$(__name__)-already-initialized)
     {
         local file-path = [ modules.binding $(__name__) ] ;
         .$(__name__)-already-initialized = $(file-path) ;
-
-        local whereami = $(file-path:DT) ;
-        preloading-modules $(whereami) ;
     }
+    return $(.$(__name__)-already-initialized:DT) ;
 }
 
-local rule preloading-module ( path : search ? )
+local rule import-really ( module-names + : rule-opt * : rename-opt *
+  : search : prefix : caller-module )
 {
-    if ! $(root)
+    module $(caller-module)
     {
-        search = [ path.parent $(path) ] ;
-    }
-
-    local file-name = [ path.basename $(path) ] ;
-    local module-name = [ MATCH ^(.*)\.jam : $(file-name) ] ;
-
-    # Register extension style (extensions/...) module name. Hereby import rule
-    # can lookup extension style module name.
-    modules.load $(__name__)/$(module-name) : $(file-name) : $(search) ;
-}
-
-local rule preloading-modules ( where )
-{
-    for local sub in $(.$(__name__)-subdirs)
-    {
-        sub = [ path.join $(where) $(sub) ] ;
-        for local m in [ path.glob $(sub) : *.jam ]
+        import modules ;
+        for local m in $(1)
         {
-            preloading-module $(m) : $(sub) ;
+            local pm = $(5)/$(m) ;
+            modules.load $(pm) : $(m).jam : $(4) ;
+            import $(pm) : $(2) : $(3) ;
         }
     }
+}
+
+rule import ( module-names + : rule-opt * : rename-opt * )
+{
+    local search = [ extensions-root ] ;
+    search = $(search)/$(.$(__name__)-subdirs) ;
+
+    import-really $(module-names) : $(rule-opt) : $(rename-opt)
+      : $(search) : $(__name__) : [ CALLER_MODULE ] ;
 }

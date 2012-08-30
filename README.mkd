@@ -11,9 +11,9 @@ Usage:
     
     modules.load extensions : : /path/to/build.extensions ;
     import extensions ;
-    extensions.init ;
     
-    import extensions/some-modules ;
+    extensions.import some-module ;
+    extensions/some-module.some-rule ;
 
 For more details, see wiki page.
 
