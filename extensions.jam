@@ -12,7 +12,7 @@ import path ;
   util
   ;
 
-local rule extensions-root ( )
+local rule root ( )
 {
     if ! $(.$(__name__)-already-initialized)
     {
@@ -25,21 +25,34 @@ local rule extensions-root ( )
 local rule import-really ( module-names + : rule-opt * : rename-opt *
   : search * : prefix : caller-module )
 {
+    # To be able to use rules in each extensions, import rules as under
+    # 'extensions' module.
+    local rules = import root ;
+    for local m in $(prefix)/$(module-names)
+    {
+        IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
+    }
+
+    # Use extensions/original prefix to avoid polluting caller-module's namespace.
+    local .prefix = extensions/original/modules ;
+    local .rules = import load ;
+    IMPORT modules : $(.rules) : $(caller-module) : $(.prefix).$(.rules) ;
+
     module $(caller-module)
     {
-        import modules ;
+        local .prefix = extensions/original/modules ;
         for local m in $(1)
         {
             local pm = $(5)/$(m) ;
-            modules.load $(pm) : $(m).jam : $(4) ;
-            import $(pm) : $(2) : $(3) ;
+            $(.prefix).load $(pm) : $(m).jam : $(4) ;
+            $(.prefix).import $(pm) : $(2) : $(3) ;
         }
     }
 }
 
 rule import ( module-names + : rule-opt * : rename-opt * )
 {
-    local search = [ extensions-root ] ;
+    local search = [ root ] ;
     search = $(search)/$(.$(__name__)-subdirs) ;
 
     import-really $(module-names) : $(rule-opt) : $(rename-opt)
