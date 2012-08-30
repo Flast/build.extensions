@@ -5,6 +5,7 @@
 
 import modules ;
 import path ;
+import set ;
 
 .$(__name__)-already-initialized = ;
 
@@ -22,8 +23,9 @@ local rule root ( )
     return $(.$(__name__)-already-initialized:DT) ;
 }
 
-local rule import-really ( module-names + : rule-opt * : rename-opt *
-  : search * : prefix : caller-module )
+# In pre-import/import-really, use extensions/original prefix to avoid polluting
+# caller-module's namespace.
+local rule pre-import ( module-names + : search * : prefix : caller-module )
 {
     # To be able to use rules in each extensions, import rules as under
     # 'extensions' module.
@@ -33,28 +35,51 @@ local rule import-really ( module-names + : rule-opt * : rename-opt *
         IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
     }
 
-    # Use extensions/original prefix to avoid polluting caller-module's namespace.
-    local .prefix = extensions/original/modules ;
-    local .rules = import load ;
-    IMPORT modules : $(.rules) : $(caller-module) : $(.prefix).$(.rules) ;
+    IMPORT modules : load : $(caller-module)
+      : extensions/original/modules.load ;
 
     module $(caller-module)
     {
-        local .prefix = extensions/original/modules ;
+        local .modules = extensions/original/modules ;
         for local m in $(1)
         {
-            local pm = $(5)/$(m) ;
-            $(.prefix).load $(pm) : $(m).jam : $(4) ;
-            $(.prefix).import $(pm) : $(2) : $(3) ;
+            $(.modules).load $(3)/$(m) : $(m).jam : $(2) ;
         }
     }
 }
 
+local rule import-really ( module-names + : rule-opt * : rename-opt *
+  : prefix : caller-module )
+{
+    IMPORT modules : import : $(caller-module)
+      : extensions/original/modules.import ;
+
+    module $(caller-module)
+    {
+        local .modules = extensions/original/modules ;
+        for local m in $(1)
+        {
+            $(.modules).import $(4)/$(m) : $(2) : $(3) ;
+        }
+    }
+}
+
+.$(__name__)-loaded = ;
 rule import ( module-names + : rule-opt * : rename-opt * )
 {
-    local search = [ root ] ;
-    search = $(search)/$(.$(__name__)-subdirs) ;
+    local caller = [ CALLER_MODULE ] ;
 
+    # Check and skip already loaded modules to avoid recursive importing.
+    local load = [ set.difference $(module-names) : $(.$(__name__)-loaded) ] ;
+    if $(load)
+    {
+        .$(__name__)-loaded += $(load) ;
+
+        local search = [ root ] ;
+        search = $(search)/$(.$(__name__)-subdirs) ;
+
+        pre-import $(load) : $(search) : $(__name__) : $(caller) ;
+    }
     import-really $(module-names) : $(rule-opt) : $(rename-opt)
-      : $(search) : $(__name__) : [ CALLER_MODULE ] ;
+      : $(__name__) : $(caller) ;
 }
