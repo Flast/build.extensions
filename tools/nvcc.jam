@@ -39,17 +39,15 @@ local rule handle-options ( toolset : condition * : command * : options * )
     common.handle-options $(toolset) : $(condition) : $(command) : $(options) ;
 
     flags $(__name__).compile.cu OPTIONS $(condition)
-      : [ feature.get-values <cuflags> : $(options) ]
-      : unchecked ;
+      : [ feature.get-values cuflags : $(options) ] : unchecked ;
 }
 
 class CUDA-compiling-generator : C-compiling-generator
 {
 }
 
-rule register-cuda-compiler ( id :
-    source-types + : target-types + :
-    requirements * : optional-properties * )
+rule register-cuda-compiler ( id : source-types + : target-types +
+  : requirements * : optional-properties * )
 {
     generators.register [ new CUDA-compiling-generator $(id) : $(source-types)
                             : $(target-types) : <toolset>$(__name__) $(requirements)
@@ -114,11 +112,11 @@ rule compile.cu ( targets * : sources * : properties * )
     switch $(target)
     {
         case "" :
-          OPTIONS on $(targets) += -c ;
+            OPTIONS on $(targets) += -c ;
         case "ptx" :
         case "cubin" :
         case * :
-          EXIT "** error ** nvcc.jam: invalid target (" $(target) ")." ;
+            EXIT "** error ** nvcc.jam: invalid target (" $(target) ")." ;
     }
 
     setup-gpu-architecture $(targets) : $(sources) : $(properties) ;
