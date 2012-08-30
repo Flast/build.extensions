@@ -83,7 +83,7 @@ class extensions/bind--binder
         for local i in $(range)
         {
             _$(i) = [ sequence.transform $(expander).exec
-              : [ $(self.args).get-at $(i) ] ] ;
+                        : [ $(self.args).get-at $(i) ] ] ;
         }
 
         indirect.call $(self.indirect)
@@ -92,11 +92,9 @@ class extensions/bind--binder
     }
 }
 
-local rule make-binder ( * )
+local rule make-binder ( indirect : args )
 {
-    local b = [ class.new extensions/bind--binder
-                    $(1) : $(2) : $(3) : $(4) : $(5)
-                  : $(6) : $(7) : $(8) : $(9) ] ;
+    local b = [ class.new extensions/bind--binder $(indirect) : $(args) ] ;
     return $(b).exec ;
 }
 
