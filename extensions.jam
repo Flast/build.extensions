@@ -18,9 +18,9 @@ local rule root ( )
     if ! $(.$(__name__)-already-initialized)
     {
         local file-path = [ modules.binding $(__name__) ] ;
-        .$(__name__)-already-initialized = $(file-path) ;
+        .$(__name__)-already-initialized = $(file-path:DT) ;
     }
-    return $(.$(__name__)-already-initialized:DT) ;
+    return $(.$(__name__)-already-initialized) ;
 }
 
 # In pre-import/import-really, use extensions/original prefix to avoid polluting
