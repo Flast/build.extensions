@@ -1,0 +1,135 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import "class" ;
+import common ;
+import feature ;
+import generators ;
+import modules ;
+import regex ;
+import sequence ;
+import toolset ;
+import type ;
+import unix ;
+
+if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
+{
+    .debug-configuration = true ;
+}
+
+feature.extend toolset : $(__name__) ;
+
+rule init ( backend : additional-options * )
+{
+    local v = [ regex.split $(backend) - ] ;
+    local condition = [ common.check-init-parameters $(__name__)
+                          : backend-1 $(v[1]) : backend-2 $(v[2])
+                          : backend-3 $(v[3]) : backend-4 $(v[4])
+                          : backend-5 $(v[5]) : backend-6 $(v[6])
+                          : backend-7 $(v[7]) : backend-8 $(v[8])
+                          : backend-9 $(v[9]) ] ;
+    common.handle-options $(__name__) : $(condition) : : $(options) ;
+}
+
+toolset.inherit $(__name__) : unix ;
+
+generators.override $(__name__).prebuild : prebuild ;
+generators.override $(__name__).searched-lib-generator : searched-lib-generator ;
+
+.can-offload-types = CPP ;
+sequence.transform type.register : OFFLOAD_$(.can-offload-types) ;
+
+class offload-target : notfile-target
+{
+    rule __init__ ( name exact ? : type ? : project : action ? )
+    {
+        # notfile-target.__init__ does not take type argments. But it required
+        # by subvariant.implict-includes (called in compile-action.actualize).
+        # Thus call abstract-file-target.__init__ instead of notfile-target.__init__ .
+        abstract-file-target.__init__ $(name) $(exact)
+          : $(type) : $(project) : $(action) ;
+    }
+}
+
+class offload-action : action
+{
+}
+
+class source-offload-generator : generator
+{
+    rule __init__ ( module-name composing ? : source-types * : target-types * : requirements * )
+    {
+        generator.__init__ $(module-name).offload $(composing)
+          : $(source-types) : $(target-types) : $(requirements) ;
+    }
+
+    # NOTE: Most of behaviours similar to generator.generated-targets.
+    # But generator.generated-targets cannot change virtual-target.
+    rule generated-targets ( sources + : property-set : project name ? )
+    {
+        if ! $(name)
+        {
+            name = [ determine-output-name $(sources) ] ;
+        }
+
+        local action = [ action-class ] ;
+        local a = [ class.new $(action) $(sources) : [ rule-name ] : $(property-set) ] ;
+
+        local targets ;
+        local pre = $(self.name-prefix) ;
+        local post = $(self.name-postfix) ;
+        for local t in $(self.target-types)
+        {
+            local generated-name = $(pre[1])$(name:BS)$(post[1]) ;
+            generated-name = $(generated-name:R=$(name:D)) ;
+            pre = $(pre[2-]) ;
+            post = $(post[2-]) ;
+
+            targets += [ class.new offload-target $(generated-name) : $(t) : $(project) : $(a) ] ;
+        }
+        return [ sequence.transform virtual-target.register : $(targets) ] ;
+    }
+
+    rule action-class ( )
+    {
+        return offload-action ;
+    }
+}
+
+rule offload ( targets * : sources * : properties * )
+{
+}
+actions offload
+{
+}
+
+class offload-generator : generator
+{
+    rule action-class ( )
+    {
+        return compile-action ;
+    }
+}
+
+local rule register-offload-compiler ( id : source-types + : target-types +
+                                        : requirements * : optional-properties * )
+{
+    local offload-types = OFFLOAD_$(source-types) ;
+    generators.register [ class.new source-offload-generator $(__name__)
+                            : $(source-types) : $(offload-types)
+                            : $(requirements) : $(optional-properties) ] ;
+    generators.register [ class.new offload-generator $(id)
+                            : $(offload-types) : $(target-types)
+                            : $(requirements) : $(optional-properties) ] ;
+}
+
+register-offload-compiler $(__name__).compile.c++ : CPP : OBJ : <toolset>$(__name__) ;
+
+rule compile.c++ ( targets * : sources * : properties * )
+{
+}
+actions compile.c++
+{
+}
