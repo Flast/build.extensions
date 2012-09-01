@@ -35,9 +35,8 @@ local rule pre-import ( module-names + : search * : prefix : caller-module )
         IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
     }
 
-    rules = import load ;
-    IMPORT modules : $(rules) : $(caller-module)
-      : extensions/original/modules.$(rules) ;
+    IMPORT modules : load : $(caller-module)
+      : extensions/original/modules.load ;
 
     module $(caller-module)
     {
@@ -52,6 +51,9 @@ local rule pre-import ( module-names + : search * : prefix : caller-module )
 local rule import-really ( module-names + : rule-opt * : rename-opt *
   : prefix : caller-module )
 {
+    IMPORT modules : import : $(caller-module)
+      : extensions/original/modules.import ;
+
     module $(caller-module)
     {
         local .modules = extensions/original/modules ;
