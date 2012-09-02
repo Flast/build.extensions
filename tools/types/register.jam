@@ -12,6 +12,6 @@ import type ;
 
 for m in types/$(.sibling-modules)
 {
-    IMPORT types/register : type : $(m) : type ;
+    IMPORT types/register : type : [ extensions.prefix $(m) ] : type ;
     extensions.import $(m) ;
 }
