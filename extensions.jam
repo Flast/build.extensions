@@ -23,43 +23,54 @@ local rule root ( )
     return $(.$(__name__)-already-initialized) ;
 }
 
+rule prefix ( module-name )
+{
+    return $(__name__)/$(module-name) ;
+}
+
 # In pre-import/import-really, use extensions/original prefix to avoid polluting
 # caller-module's namespace.
-local rule pre-import ( module-names + : search * : prefix : caller-module )
+local rule pre-import ( module-names + : search * : caller-module )
 {
     # To be able to use rules in each extensions, import rules as under
     # 'extensions' module.
-    local rules = import root ;
-    for local m in $(prefix)/$(module-names)
+    local rules = import root prefix ;
+    for local m in [ prefix $(module-names) ]
     {
         IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
     }
 
     IMPORT modules : load : $(caller-module)
       : extensions/original/modules.load ;
+    IMPORT $(__name__) : prefix : $(caller-module)
+      : extensions/extensions.prefix ;
 
     module $(caller-module)
     {
         local .modules = extensions/original/modules ;
         for local m in $(1)
         {
-            $(.modules).load $(3)/$(m) : $(m).jam : $(2) ;
+            $(.modules).load [ extensions/extensions.prefix $(m) ]
+              : $(m).jam : $(2) ;
         }
     }
 }
 
 local rule import-really ( module-names + : rule-opt * : rename-opt *
-  : prefix : caller-module )
+  : caller-module )
 {
     IMPORT modules : import : $(caller-module)
       : extensions/original/modules.import ;
+    IMPORT $(__name__) : prefix : $(caller-module)
+      : extensions/extensions.prefix ;
 
     module $(caller-module)
     {
         local .modules = extensions/original/modules ;
         for local m in $(1)
         {
-            $(.modules).import $(4)/$(m) : $(2) : $(3) ;
+            $(.modules).import [ extensions/extensions.prefix $(m) ]
+              : $(2) : $(3) ;
         }
     }
 }
@@ -78,8 +89,8 @@ rule import ( module-names + : rule-opt * : rename-opt * )
         local search = [ root ] ;
         search = $(search)/$(.$(__name__)-subdirs) ;
 
-        pre-import $(load) : $(search) : $(__name__) : $(caller) ;
+        pre-import $(load) : $(search) : $(caller) ;
     }
     import-really $(module-names) : $(rule-opt) : $(rename-opt)
-      : $(__name__) : $(caller) ;
+      : $(caller) ;
 }
