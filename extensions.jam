@@ -25,7 +25,7 @@ local rule root ( )
 
 rule prefix ( module-name )
 {
-    return $(__name__)/$(module-name) ;
+    return $(__name__):$(module-name) ;
 }
 
 # In pre-import/import-really, use extensions/original prefix to avoid polluting
