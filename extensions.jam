@@ -29,17 +29,22 @@ rule prefix ( module-name )
     return $(__name__)/$(module-name) ;
 }
 
+local rule export-rules ( target-modules + )
+{
+    # To be able to use rules in each extensions, import rules as under
+    # 'extensions' module.
+    local rules = import prefix root using ;
+    for local m in $(target-modules)
+    {
+        IMPORT $(__name__) : $(rules) : [ prefix $(m) ] : extensions.$(rules) ;
+    }
+}
+
 # In pre-import/import-really, use extensions/original prefix to avoid polluting
 # caller-module's namespace.
 local rule pre-import ( module-names + : search * : caller-module )
 {
-    # To be able to use rules in each extensions, import rules as under
-    # 'extensions' module.
-    local rules = import root prefix ;
-    for local m in [ prefix $(module-names) ]
-    {
-        IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
-    }
+    export-rules $(module-names) ;
 
     IMPORT modules : load : $(caller-module)
       : extensions/original/modules.load ;
