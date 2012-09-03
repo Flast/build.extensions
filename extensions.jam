@@ -26,7 +26,8 @@ local rule root ( )
 
 rule prefix ( module-name )
 {
-    return $(__name__)/$(module-name) ;
+
+    return $(__name__):$(module-name) ;
 }
 
 local rule export-rules ( target-modules + )
@@ -81,6 +82,16 @@ local rule import-really ( module-names + : rule-opt * : rename-opt *
     }
 }
 
+local rule path-join ( p1 : p2 * )
+{
+    local result ;
+    for local p in $(p2)
+    {
+        result += [ path.join $(p1) $(p) ] ;
+    }
+    return $(result) ;
+}
+
 .$(__name__)-loaded = ;
 rule import ( module-names + : rule-opt * : rename-opt * )
 {
@@ -92,9 +103,7 @@ rule import ( module-names + : rule-opt * : rename-opt * )
     {
         .$(__name__)-loaded += $(load) ;
 
-        local search = [ root ] ;
-        search = $(search)/$(.$(__name__)-subdirs) ;
-
+        local search = [ path-join [ root ] : $(.$(__name__)-subdirs) ] ;
         pre-import $(load) : $(search) : $(caller) ;
     }
     import-really $(module-names) : $(rule-opt) : $(rename-opt)
