@@ -123,37 +123,74 @@ module [ prefix build-request ]
     import build-request ;
 
     .build-request = extensions/original/bulid-request ;
+    .build-system = extensions/original/bulid-system ;
 
     local rule handle-toolset-configurations ( argv * )
     {
         import feature ;
-        import regex ;
 
-        local option-toolsets  = [ regex.split-list [ MATCH ^--ext-toolset=(.*)$ : $(argv) ] : "," ] ;
-        local feature-toolsets = [ regex.split-list [ MATCH   ^ext-toolset=(.*)$ : $(argv) ] : "," ] ;
+        local toolsets ;
+        for local a in $(argv)
+        {
+            local t = [ MATCH ^--ext-toolset=(.*)$ : $(a) ]
+              [ MATCH ^ext-toolset=(.*)$ : $(a) ] ;
+            if $(t)
+            {
+                toolsets += $(t) ;
+            }
+        }
 
         local extra-properties ;
-        for local t in $(option-toolsets) $(feature-toolsets)
+        for local t in $(toolsets)
         {
             if ! $(t) in [ feature.values <toolset> ]
             {
                 extensions.using $(t) ;
             }
 
-            if ! $(t) in $(argv) $(feature-toolsets)
+            local prefixed-toolset = [ extensions.prefix $(t) ] ;
+            if ! toolset=$(t) in $(argv)
+              || ! toolset=$(prefixed-toolset) in $(argv)
             {
-                extra-properties += toolset=$(t) ;
+                extra-properties += toolset=$(prefixed-toolset) ;
             }
         }
         return $(extra-properties) ;
     }
 
+    rule process-explicit-toolset-requests ( )
+    {
+        import modules ;
+
+        local argv = [ modules.peek : ARGV ] ;
+
+        local ext-toolsets = [ handle-toolset-configurations $(argv) ] ;
+        local extra-toolsets = [ $(.build-system).process-explicit-toolset-requests ] ;
+
+        return $(extra-toolsets) $(ext-toolsets) ;
+    }
+
+    IMPORT build-system : process-explicit-toolset-requests
+      : $(__name__) : $(.build-system).process-explicit-toolset-requests ;
+    IMPORT $(__name__) : process-explicit-toolset-requests
+      : build-system : process-explicit-toolset-requests ;
+
+    local rule is-not-ext-toolset ( property )
+    {
+        if ! [ MATCH ^ext-toolset=(.*)$ : $(property) ]
+        {
+            return true ;
+        }
+    }
+
     rule from-command-line ( command-line * )
     {
-        local ext-toolsets = [ handle-toolset-configurations $(command-line) ] ;
+        import sequence ;
 
-        return [ $(.build-request).from-command-line
-                    $(command-line) $(ext-toolset) ] ;
+        # Remove ext-toolset= to avoid generate <ext-toolset> feature by build-system.
+        local properties = [ sequence.filter is-not-ext-toolset : $(command-line) ] ;
+
+        return [ $(.build-request).from-command-line $(properties) ] ;
     }
 
     IMPORT build-request : from-command-line
