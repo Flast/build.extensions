@@ -143,9 +143,11 @@ module [ prefix build-request ]
         local extra-properties ;
         for local t in $(toolsets)
         {
+            local (t,...) = [ MATCH ^([^-]+)-?(.+)?$ : $(t) ] ;
+
             if ! $(t) in [ feature.values <toolset> ]
             {
-                extensions.using $(t) ;
+                extensions.using $((t,...)[1]) : $((t,...)[2]) ;
             }
 
             local prefixed-toolset = [ extensions.prefix $(t) ] ;
