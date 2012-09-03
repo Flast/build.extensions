@@ -35,9 +35,9 @@ local rule pre-import ( module-names + : search * : caller-module )
     # To be able to use rules in each extensions, import rules as under
     # 'extensions' module.
     local rules = import root prefix ;
-    for local m in [ prefix $(module-names) ]
+    for local m in $(module-names)
     {
-        IMPORT $(__name__) : $(rules) : $(m) : extensions.$(rules) ;
+        IMPORT $(__name__) : $(rules) : [ prefix $(m) ] : extensions.$(rules) ;
     }
 
     IMPORT modules : load : $(caller-module)
