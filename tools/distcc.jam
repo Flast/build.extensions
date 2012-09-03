@@ -1,0 +1,56 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import common ;
+import errors ;
+import feature ;
+import generators ;
+import regex ;
+import toolset ;
+
+if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
+{
+    .debug-configuration = true ;
+}
+
+feature.extend toolset : $(__name__) ;
+
+rule init ( backend : command * : options * )
+{
+    command = [ common.get-invocation-command-nodefault $(__name__)
+                  : distcc : $(command) ] ;
+    if ! $(command)
+    {
+        errors.error toolset distcc initialization:
+          : provided '$(command:E=distcc)' not found
+          : initialized from [ errors.nearest-user-location ] ;
+    }
+
+    local v = [ regex.split $(backend) - ] ;
+    local condition = [ common.check-init-parameters $(__name__)
+                          : backend-1 $(v[1]) : backend-2 $(v[2])
+                          : backend-3 $(v[3]) : backend-4 $(v[4])
+                          : backend-5 $(v[5]) : backend-6 $(v[6])
+                          : backend-7 $(v[7]) : backend-8 $(v[8])
+                          : backend-9 $(v[9]) ] ;
+    common.handle-options $(__name__) : $(condition) : $(command) : $(options) ;
+}
+
+toolset.inherit-generators $(__name__) : unix : unix.link unix.link.dll ;
+
+generators.override $(__name__).prebuilt : builtin.prebuilt ;
+generators.override $(__name__).searched-lib-generator : searched-lib-generator ;
+
+generators.register-c-compiler $(__name__).compile.c++ : CPP : OBJ : <toolset>$(__name__) ;
+
+generators.override $(__name__).compile.c.pch   : pch.default-c-pch-generator   ;
+generators.override $(__name__).compile.c++.pch : pch.default-cpp-pch-generator ;
+
+rule compile.c++ ( targets * : sources * : properties * )
+{
+}
+actions compile.c++
+{
+}
