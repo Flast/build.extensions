@@ -109,3 +109,55 @@ rule using ( toolset-module : * )
 }
 
 import types/register ;
+
+
+### build-request module hijacking ###
+# XXX: Following modules/rules depends on build-system.jam behaviour.
+# Thus, some later releases might not work.
+
+modules.poke [ prefix build-request ] : __name__ : [ prefix build-request ] ;
+export-rules build-request ;
+
+module [ prefix build-request ]
+{
+    import build-request ;
+
+    .build-request = extensions/original/bulid-request ;
+
+    local rule handle-toolset-configurations ( argv * )
+    {
+        import feature ;
+        import regex ;
+
+        local option-toolsets  = [ regex.split-list [ MATCH ^--ext-toolset=(.*)$ : $(argv) ] : "," ] ;
+        local feature-toolsets = [ regex.split-list [ MATCH   ^ext-toolset=(.*)$ : $(argv) ] : "," ] ;
+
+        local extra-properties ;
+        for local t in $(option-toolsets) $(feature-toolsets)
+        {
+            if ! $(t) in [ feature.values <toolset> ]
+            {
+                extensions.using $(t) ;
+            }
+
+            if ! $(t) in $(argv) $(feature-toolsets)
+            {
+                extra-properties += toolset=$(t) ;
+            }
+        }
+        return $(extra-properties) ;
+    }
+
+    rule from-command-line ( command-line * )
+    {
+        local ext-toolsets = [ handle-toolset-configurations $(command-line) ] ;
+
+        return [ $(.build-request).from-command-line
+                    $(command-line) $(ext-toolset) ] ;
+    }
+
+    IMPORT build-request : from-command-line
+      : $(__name__) : $(.build-request).from-command-line ;
+    IMPORT $(__name__) : from-command-line
+      : build-system : build-request.from-command-line ;
+}
