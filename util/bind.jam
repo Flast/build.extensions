@@ -7,6 +7,18 @@ import "class" ;
 import indirect ;
 import numbers ;
 
+class extensions/bind--base
+{
+    local rule is-binding ( arg )
+    {
+        local trim-exec = [ MATCH ^(.*)\.exec$ : $(arg) ] ;
+        if $(trim-exec)
+        {
+            return [ class.is-a $(trim-exec) : extensions/bind--binder ] ;
+        }
+    }
+}
+
 class extensions/bind--placeholder
 {
     rule __init__ ( number )
@@ -35,7 +47,7 @@ rule _7 ( ) { return [ placeholder 7 ] ; }
 rule _8 ( ) { return [ placeholder 8 ] ; }
 rule _9 ( ) { return [ placeholder 9 ] ; }
 
-class extensions/bind--args-expander
+class extensions/bind--args-expander : extensions/bind--base
 {
     import "class" ;
     import numbers ;
@@ -50,7 +62,9 @@ class extensions/bind--args-expander
 
     rule exec ( arg )
     {
-        if [ class.is-a $(arg) : extensions/bind--placeholder ]
+        # NOTE: class.is-a will fail if $(arg) is 'instance'.rule .
+        if ! [ is-binding $(arg) ]
+          && [ class.is-a $(arg) : extensions/bind--placeholder ]
         {
             local i = [ $(arg).number ] ;
             arg = $(self.$(i)) ;
@@ -59,7 +73,7 @@ class extensions/bind--args-expander
     }
 }
 
-class extensions/bind--binder
+class extensions/bind--binder : extensions/bind--base
 {
     import "class" ;
     import numbers ;
@@ -82,8 +96,19 @@ class extensions/bind--binder
         local _$(range) ;
         for local i in $(range)
         {
-            _$(i) = [ sequence.transform $(expander).exec
-                        : [ $(self.args).get-at $(i) ] ] ;
+            for local j in [ sequence.transform $(expander).exec
+                              : [ $(self.args).get-at $(i) ] ]
+            {
+                if [ is-binding $(j) ]
+                {
+                    _$(i) += [ $(j) $(1) : $(2) : $(3) : $(4) : $(5)
+                                : $(6) : $(7) : $(8) : $(9) ] ;
+                }
+                else
+                {
+                    _$(i) += $(j) ;
+                }
+            }
         }
 
         indirect.call $(self.indirect)
