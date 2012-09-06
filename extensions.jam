@@ -10,6 +10,7 @@ import set ;
 .$(__name__)-already-initialized = ;
 
 .$(__name__)-subdirs =
+  build
   tools
   util
   ;
@@ -118,94 +119,4 @@ rule using ( toolset-module : * )
 }
 
 import types/register ;
-
-
-### build-request module hijacking ###
-# XXX: Following modules/rules depends on build-system.jam behaviour.
-# Thus, some later releases might not work.
-
-modules.poke [ prefix build-request ] : __name__ : [ prefix build-request ] ;
-export-rules build-request ;
-
-module [ prefix build-request ]
-{
-    import build-request ;
-
-    .build-request = extensions/original/bulid-request ;
-    .build-system = extensions/original/bulid-system ;
-
-    local rule handle-toolset-configurations ( argv * )
-    {
-        import feature ;
-
-        local toolsets ;
-        for local a in $(argv)
-        {
-            local t = [ MATCH ^--ext-toolset=(.*)$ : $(a) ]
-              [ MATCH ^ext-toolset=(.*)$ : $(a) ] ;
-            if $(t)
-            {
-                toolsets += $(t) ;
-            }
-        }
-
-        local extra-properties ;
-        for local t in $(toolsets)
-        {
-            local (t,...) = [ MATCH ^([^-]+)-?(.+)?$ : $(t) ] ;
-
-            if ! $(t) in [ feature.values <toolset> ]
-            {
-                extensions.using $((t,...)[1]) : $((t,...)[2]) ;
-            }
-
-            local prefixed-toolset = [ extensions.prefix $(t) ] ;
-            if ! toolset=$(t) in $(argv)
-              || ! toolset=$(prefixed-toolset) in $(argv)
-            {
-                extra-properties += toolset=$(prefixed-toolset) ;
-            }
-        }
-        return $(extra-properties) ;
-    }
-
-    rule process-explicit-toolset-requests ( )
-    {
-        import modules ;
-
-        local argv = [ modules.peek : ARGV ] ;
-
-        local ext-toolsets = [ handle-toolset-configurations $(argv) ] ;
-        local extra-toolsets = [ $(.build-system).process-explicit-toolset-requests ] ;
-
-        return $(extra-toolsets) $(ext-toolsets) ;
-    }
-
-    IMPORT build-system : process-explicit-toolset-requests
-      : $(__name__) : $(.build-system).process-explicit-toolset-requests ;
-    IMPORT $(__name__) : process-explicit-toolset-requests
-      : build-system : process-explicit-toolset-requests ;
-
-    local rule is-not-ext-toolset ( property )
-    {
-        if ! [ MATCH ^ext-toolset=(.*)$ : $(property) ]
-        {
-            return true ;
-        }
-    }
-
-    rule from-command-line ( command-line * )
-    {
-        import sequence ;
-
-        # Remove ext-toolset= to avoid generate <ext-toolset> feature by build-system.
-        local properties = [ sequence.filter is-not-ext-toolset : $(command-line) ] ;
-
-        return [ $(.build-request).from-command-line $(properties) ] ;
-    }
-
-    IMPORT build-request : from-command-line
-      : $(__name__) : $(.build-request).from-command-line ;
-    IMPORT $(__name__) : from-command-line
-      : build-system : build-request.from-command-line ;
-}
+import build-request ;
