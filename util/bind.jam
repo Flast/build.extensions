@@ -14,7 +14,20 @@ class extensions/bind--base
         local trim-exec = [ MATCH ^(.*)\.exec$ : $(arg) ] ;
         if $(trim-exec)
         {
-            return [ class.is-a $(trim-exec) : extensions/bind--binder ] ;
+            return [ class-is-a $(trim-exec) : extensions/bind--binder ] ;
+        }
+    }
+
+    local rule class-is-a ( instance : type )
+    {
+        import modules ;
+
+        # class.is-a will fail if $(instance) is 'instance'.rule . So if
+        # $(instance) is equal to 'instance'.rule style strings, following
+        # cond will fail and class.is-a will not be called.
+        if [ modules.peek $(instance) : __class__ ]
+        {
+            return [ class.is-a $(instance) : $(type) ] ;
         }
     }
 }
@@ -62,9 +75,7 @@ class extensions/bind--args-expander : extensions/bind--base
 
     rule exec ( arg )
     {
-        # NOTE: class.is-a will fail if $(arg) is 'instance'.rule .
-        if ! [ is-binding $(arg) ]
-          && [ class.is-a $(arg) : extensions/bind--placeholder ]
+        if [ class-is-a $(arg) : extensions/bind--placeholder ]
         {
             local i = [ $(arg).number ] ;
             arg = $(self.$(i)) ;
