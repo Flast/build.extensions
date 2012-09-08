@@ -7,7 +7,7 @@ import "class" ;
 import indirect ;
 import numbers ;
 
-class extensions/bind--base
+class extensions/bind--base # abstract
 {
     local rule is-binding ( arg )
     {
@@ -91,6 +91,7 @@ class extensions/bind--binder : extensions/bind--base
     {
         self.indirect = $(indirect) ;
         self.args = $(args) ;
+        self.range = [ numbers.range 1 19 ] ;
     }
 
     local rule geq ( a b )
@@ -100,9 +101,8 @@ class extensions/bind--binder : extensions/bind--base
 
     local rule eval-rule ( rule + : a )
     {
-        local range = [ numbers.range 1 19 ] ;
-        local _$(range) ;
-        for local i in [ filter geq [ increment [ $(a).size ] ] : $(range) ]
+        local _$(self.range) ;
+        for local i in [ filter geq [ increment [ $(a).size ] ] : $(self.range) ]
         {
             _$(i) = [ $(a).get-at $(i) ] ;
         }
@@ -125,10 +125,8 @@ class extensions/bind--binder : extensions/bind--base
 
     rule exec ( * )
     {
-        local range = [ numbers.range 1 9 ] ;
-
         local a = [ class.new vector ] ;
-        for local i in $(range)
+        for local i in $(self.range)
         {
             $(a).push-back [ class.new vector $($(i)) ] ;
         }
@@ -136,7 +134,7 @@ class extensions/bind--binder : extensions/bind--base
         local expander = [ class.new extensions/bind--args-expander $(a) ] ;
 
         local params = [ class.new vector ] ;
-        for local i in $(range)
+        for local i in $(self.range)
         {
             local result = [ sequence.transform process-arg $(expander) $(a)
                               : [ $(self.args).get-at $(i) ] ] ;
@@ -158,7 +156,7 @@ rule binding ( rulename arg * : * )
     local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
 
     local args = [ class.new vector [ class.new vector $(arg) ] ] ;
-    for local i in [ numbers.range 2 9 ]
+    for local i in [ numbers.range 2 19 ]
     {
         $(args).push-back [ class.new vector $($(i)) ] ;
     }
