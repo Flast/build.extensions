@@ -9,6 +9,11 @@ import numbers ;
 
 class extensions/bind--base # abstract
 {
+    rule __init__ ( )
+    {
+        self.range = [ numbers.range 1 19 ] ;
+    }
+
     local rule is-binding ( arg )
     {
         local trim-exec = [ MATCH ^(.*)\.exec$ : $(arg) ] ;
@@ -76,6 +81,7 @@ class extensions/bind--args-expander : extensions/bind--base
 
     rule __init__ ( a )
     {
+        extensions/bind--base.__init__ ;
         self.a = $(a) ;
     }
 
@@ -98,9 +104,9 @@ class extensions/bind--binder : extensions/bind--base
 
     rule __init__ ( indirect : args )
     {
+        extensions/bind--base.__init__ ;
         self.indirect = $(indirect) ;
         self.args = $(args) ;
-        self.range = [ numbers.range 1 19 ] ;
     }
 
     local rule geq ( a b )
@@ -177,6 +183,7 @@ class extensions/bind--protect : extensions/bind--base
 {
     rule __init__ ( [binding-rule] b )
     {
+        extensions/bind--base.__init__ ;
         self.b = $(b) ;
     }
 
