@@ -65,20 +65,16 @@ class extensions/bind--args-expander : extensions/bind--base
     import "class" ;
     import numbers ;
 
-    rule __init__ ( * )
+    rule __init__ ( a )
     {
-        for local i in [ numbers.range 1 9 ]
-        {
-            self.$(i) = $($(i)) ;
-        }
+        self.a = $(a) ;
     }
 
     rule exec ( arg )
     {
         if [ class-is-a $(arg) : extensions/bind--placeholder ]
         {
-            local i = [ $(arg).number ] ;
-            arg = $(self.$(i)) ;
+            arg = [ $(self.a).get-at [ $(arg).number ] ] ;
         }
         return $(arg) ;
     }
@@ -87,8 +83,8 @@ class extensions/bind--args-expander : extensions/bind--base
 class extensions/bind--binder : extensions/bind--base
 {
     import "class" ;
-    import numbers ;
-    import sequence ;
+    import numbers : increment ;
+    import sequence : filter ;
     import indirect ;
 
     rule __init__ ( indirect : args )
@@ -97,34 +93,56 @@ class extensions/bind--binder : extensions/bind--base
         self.args = $(args) ;
     }
 
+    local rule geq ( a b )
+    {
+        return [ numbers.less $(b) $(a) ] ;
+    }
+
+    local rule eval-rule ( rule + : a )
+    {
+        local range = [ numbers.range 1 19 ] ;
+        local _$(range) ;
+        for local i in [ filter geq [ increment [ $(a).size ] ] : $(range) ]
+        {
+            _$(i) = [ $(a).get-at $(i) ] ;
+        }
+        return [ $(rule) $(_1) : $(_2) : $(_3) : $(_4) : $(_5) : $(_6) : $(_7)
+                  : $(_8) : $(_9) : $(_10) : $(_11) : $(_12) : $(_13) : $(_14)
+                  : $(_15) : $(_16) : $(_17) : $(_18) : $(_19) ] ;
+    }
+
     rule exec ( * )
     {
-        local expander = [ class.new extensions/bind--args-expander
-                              $(1) : $(2) : $(3) : $(4) : $(5)
-                            : $(6) : $(7) : $(8) : $(9) ] ;
-
         local range = [ numbers.range 1 9 ] ;
-        local _$(range) ;
+
+        local a = [ class.new vector ] ;
         for local i in $(range)
         {
+            $(a).push-back [ class.new vector $($(i)) ] ;
+        }
+
+        local expander = [ class.new extensions/bind--args-expander $(a) ] ;
+
+        local params = [ class.new vector ] ;
+        for local i in $(range)
+        {
+            local result ;
             for local j in [ sequence.transform $(expander).exec
                               : [ $(self.args).get-at $(i) ] ]
             {
                 if [ is-binding $(j) ]
                 {
-                    _$(i) += [ $(j) $(1) : $(2) : $(3) : $(4) : $(5)
-                                : $(6) : $(7) : $(8) : $(9) ] ;
+                    result += [ eval-rule $(j) : $(a) ] ;
                 }
                 else
                 {
-                    _$(i) += $(j) ;
+                    result += $(j) ;
                 }
             }
+            $(params).push-back [ class.new vector $(result) ] ;
         }
 
-        indirect.call $(self.indirect)
-            $(_1) : $(_2) : $(_3) : $(_4) : $(_5)
-          : $(_6) : $(_7) : $(_8) : $(_9) ;
+        return [ eval-rule indirect.call $(self.indirect) : $(params) ] ;
     }
 }
 
