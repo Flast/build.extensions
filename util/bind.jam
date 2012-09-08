@@ -18,6 +18,15 @@ class extensions/bind--base # abstract
         }
     }
 
+    local rule binding-rule ( x )
+    {
+        if ! [ is-binding $(x) ]
+        {
+            import errors ;
+            errors.error "expected a binding object, but got \"$(x)\"" ;
+        }
+    }
+
     local rule class-is-a ( instance : type )
     {
         import modules ;
@@ -162,4 +171,31 @@ rule binding ( rulename arg * : * )
     }
 
     return [ make-binder $(r) : $(args) ] ;
+}
+
+class extensions/bind--protect : extensions/bind--base
+{
+    rule __init__ ( [binding-rule] b )
+    {
+        self.b = $(b) ;
+    }
+
+    rule exec ( * )
+    {
+        return [ $(self.b) $(1) : $(2) : $(3) : $(4) : $(5) : $(6) : $(7)
+                  : $(8) : $(9) : $(10) : $(11) : $(12) : $(13) : $(14)
+                  : $(15) : $(16) : $(17) : $(18) : $(19) ] ;
+    }
+}
+
+rule protect ( b )
+{
+    return [ class.new extensions/bind--protect $(b) ] ;
+}
+
+rule protected-binding ( * )
+{
+    return [ protect [ binding $(1) : $(2) : $(3) : $(4) : $(5) : $(6) : $(7)
+                        : $(8) : $(9) : $(10) : $(11) : $(12) : $(13) : $(14)
+                        : $(15) : $(16) : $(17) : $(18) : $(19) ] ] ;
 }
