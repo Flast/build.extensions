@@ -165,23 +165,22 @@ class extensions/bind--binder : extensions/bind--base
     }
 }
 
-local rule make-binder ( indirect : args )
+local rule make-binder ( rulename m : args )
 {
+    local indirect = [ indirect.make $(rulename) : $(m) ] ;
     local b = [ class.new extensions/bind--binder $(indirect) : $(args) ] ;
     return $(b).exec ;
 }
 
 rule binding ( rulename arg * : * )
 {
-    local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
-
     local args = [ class.new vector [ class.new vector $(arg) ] ] ;
     for local i in [ numbers.range 2 19 ]
     {
         $(args).push-back [ class.new vector $($(i)) ] ;
     }
 
-    return [ make-binder $(r) : $(args) ] ;
+    return [ make-binder $(rulename) [ CALLER_MODULE ] : $(args) ] ;
 }
 
 class extensions/bind--protect : extensions/bind--base
@@ -211,13 +210,11 @@ rule protect ( b )
 
 rule protected-binding ( rulename arg * : * )
 {
-    local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
-
     local args = [ class.new vector [ class.new vector $(arg) ] ] ;
     for local i in [ numbers.range 2 19 ]
     {
         $(args).push-back [ class.new vector $($(i)) ] ;
     }
 
-    return [ protect [ make-binder $(r) : $(args) ] ] ;
+    return [ protect [ make-binder $(rulename) [ CALLER_MODULE ] : $(args) ] ] ;
 }
