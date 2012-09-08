@@ -111,6 +111,18 @@ class extensions/bind--binder : extensions/bind--base
                   : $(_15) : $(_16) : $(_17) : $(_18) : $(_19) ] ;
     }
 
+    local rule process-arg ( expander a arg )
+    {
+        if [ is-binding $(arg) ]
+        {
+            return [ eval-rule $(arg) : $(a) ] ;
+        }
+        else
+        {
+            return [ $(expander).exec $(arg) ] ;
+        }
+    }
+
     rule exec ( * )
     {
         local range = [ numbers.range 1 9 ] ;
@@ -126,19 +138,8 @@ class extensions/bind--binder : extensions/bind--base
         local params = [ class.new vector ] ;
         for local i in $(range)
         {
-            local result ;
-            for local j in [ sequence.transform $(expander).exec
-                              : [ $(self.args).get-at $(i) ] ]
-            {
-                if [ is-binding $(j) ]
-                {
-                    result += [ eval-rule $(j) : $(a) ] ;
-                }
-                else
-                {
-                    result += $(j) ;
-                }
-            }
+            local result = [ sequence.transform process-arg $(expander) $(a)
+                              : [ $(self.args).get-at $(i) ] ] ;
             $(params).push-back [ class.new vector $(result) ] ;
         }
 
