@@ -9,6 +9,9 @@ import numbers ;
 
 class extensions/bind--base # abstract
 {
+    import "class" ;
+    import numbers ;
+
     rule __init__ ( )
     {
         self.range = [ numbers.range 1 19 ] ;
