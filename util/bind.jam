@@ -205,7 +205,8 @@ class extensions/bind--protect : extensions/bind--base
 
 rule protect ( b )
 {
-    return [ class.new extensions/bind--protect $(b) ] ;
+    local p = [ class.new extensions/bind--protect $(b) ] ;
+    return $(p).exec ;
 }
 
 rule protected-binding ( rulename arg * : * )
