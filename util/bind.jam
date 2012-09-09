@@ -219,3 +219,16 @@ rule protected-binding ( rulename arg * : * )
 
     return [ protect [ make-binder $(rulename) [ CALLER_MODULE ] : $(args) ] ] ;
 }
+
+rule __test__ ( )
+{
+    import assert ;
+    import numbers ;
+    import sequence : join reverse transform ;
+
+    local greater = [ binding numbers.less [ binding reverse [ _1 ] ] ] ;
+    assert.true $(greater) 2 1 ;
+
+    local t = [ binding transform [ protected-binding join [ _1 ] _x ] : [ _1 ] ] ;
+    assert.result f_x g_x h_x : $(t) f g h ;
+}
