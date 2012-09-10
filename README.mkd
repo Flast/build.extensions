@@ -13,7 +13,7 @@ Usage:
     import extensions ;
     
     extensions.import some-module ;
-    extensions/some-module.some-rule ;
+    extensions!some-module.some-rule ;
 
 For more details, see wiki page.
 

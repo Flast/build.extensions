@@ -27,8 +27,7 @@ local rule root ( )
 
 rule prefix ( module-name )
 {
-
-    return $(__name__):$(module-name) ;
+    return $(__name__)!$(module-name) ;
 }
 
 local rule export-rules ( target-modules + )

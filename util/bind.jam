@@ -7,6 +7,48 @@ import "class" ;
 import indirect ;
 import numbers ;
 
+class extensions/bind--base # abstract
+{
+    import "class" ;
+    import numbers ;
+
+    rule __init__ ( )
+    {
+        self.range = [ numbers.range 1 19 ] ;
+    }
+
+    local rule is-binding ( arg )
+    {
+        local trim-exec = [ MATCH ^(.*)\.exec$ : $(arg) ] ;
+        if $(trim-exec)
+        {
+            return [ class-is-a $(trim-exec) : extensions/bind--binder ] ;
+        }
+    }
+
+    local rule binding-rule ( x )
+    {
+        if ! [ is-binding $(x) ]
+        {
+            import errors ;
+            errors.error "expected a binding object, but got \"$(x)\"" ;
+        }
+    }
+
+    local rule class-is-a ( instance : type )
+    {
+        import modules ;
+
+        # class.is-a will fail if $(instance) is 'instance'.rule . So if
+        # $(instance) is equal to 'instance'.rule style strings, following
+        # cond will fail and class.is-a will not be called.
+        if [ modules.peek $(instance) : __class__ ]
+        {
+            return [ class.is-a $(instance) : $(type) ] ;
+        }
+    }
+}
+
 class extensions/bind--placeholder
 {
     rule __init__ ( number )
@@ -35,78 +77,161 @@ rule _7 ( ) { return [ placeholder 7 ] ; }
 rule _8 ( ) { return [ placeholder 8 ] ; }
 rule _9 ( ) { return [ placeholder 9 ] ; }
 
-class extensions/bind--args-expander
+class extensions/bind--args-expander : extensions/bind--base
 {
     import "class" ;
     import numbers ;
 
-    rule __init__ ( * )
+    rule __init__ ( a )
     {
-        for local i in [ numbers.range 1 9 ]
-        {
-            self.$(i) = $($(i)) ;
-        }
+        extensions/bind--base.__init__ ;
+        self.a = $(a) ;
     }
 
     rule exec ( arg )
     {
-        if [ class.is-a $(arg) : extensions/bind--placeholder ]
+        if [ class-is-a $(arg) : extensions/bind--placeholder ]
         {
-            local i = [ $(arg).number ] ;
-            arg = $(self.$(i)) ;
+            arg = [ $(self.a).get-at [ $(arg).number ] ] ;
         }
         return $(arg) ;
     }
 }
 
-class extensions/bind--binder
+class extensions/bind--binder : extensions/bind--base
 {
     import "class" ;
-    import numbers ;
-    import sequence ;
+    import numbers : increment ;
+    import sequence : filter ;
     import indirect ;
 
     rule __init__ ( indirect : args )
     {
+        extensions/bind--base.__init__ ;
         self.indirect = $(indirect) ;
         self.args = $(args) ;
     }
 
-    rule exec ( * )
+    local rule geq ( a b )
     {
-        local expander = [ class.new extensions/bind--args-expander
-                              $(1) : $(2) : $(3) : $(4) : $(5)
-                            : $(6) : $(7) : $(8) : $(9) ] ;
+        return [ numbers.less $(b) $(a) ] ;
+    }
 
-        local range = [ numbers.range 1 9 ] ;
-        local _$(range) ;
-        for local i in $(range)
+    local rule eval-rule ( rule + : a )
+    {
+        local _$(self.range) ;
+        for local i in [ filter geq [ increment [ $(a).size ] ] : $(self.range) ]
         {
-            _$(i) = [ sequence.transform $(expander).exec
-                        : [ $(self.args).get-at $(i) ] ] ;
+            _$(i) = [ $(a).get-at $(i) ] ;
+        }
+        return [ $(rule) $(_1) : $(_2) : $(_3) : $(_4) : $(_5) : $(_6) : $(_7)
+                  : $(_8) : $(_9) : $(_10) : $(_11) : $(_12) : $(_13) : $(_14)
+                  : $(_15) : $(_16) : $(_17) : $(_18) : $(_19) ] ;
+    }
+
+    local rule process-arg ( expander a arg )
+    {
+        if [ is-binding $(arg) ]
+        {
+            return [ eval-rule $(arg) : $(a) ] ;
+        }
+        else
+        {
+            return [ $(expander).exec $(arg) ] ;
+        }
+    }
+
+    rule exec-vector ( a )
+    {
+        local expander = [ class.new extensions/bind--args-expander $(a) ] ;
+
+        local params = [ class.new vector ] ;
+        for local i in $(self.range)
+        {
+            local result = [ sequence.transform process-arg $(expander) $(a)
+                              : [ $(self.args).get-at $(i) ] ] ;
+            $(params).push-back [ class.new vector $(result) ] ;
         }
 
-        indirect.call $(self.indirect)
-            $(_1) : $(_2) : $(_3) : $(_4) : $(_5)
-          : $(_6) : $(_7) : $(_8) : $(_9) ;
+        return [ eval-rule indirect.call $(self.indirect) : $(params) ] ;
+    }
+
+    rule exec ( * )
+    {
+        local a = [ class.new vector ] ;
+        for local i in $(self.range)
+        {
+            $(a).push-back [ class.new vector $($(i)) ] ;
+        }
+
+        return [ exec-vector $(a) ] ;
     }
 }
 
-local rule make-binder ( indirect : args )
+local rule make-binder ( rulename m : args )
 {
+    local indirect = [ indirect.make $(rulename) : $(m) ] ;
     local b = [ class.new extensions/bind--binder $(indirect) : $(args) ] ;
     return $(b).exec ;
 }
 
 rule binding ( rulename arg * : * )
 {
-    local r = [ indirect.make $(rulename) : [ CALLER_MODULE ] ] ;
-
     local args = [ class.new vector [ class.new vector $(arg) ] ] ;
-    for local i in [ numbers.range 2 9 ]
+    for local i in [ numbers.range 2 19 ]
     {
         $(args).push-back [ class.new vector $($(i)) ] ;
     }
 
-    return [ make-binder $(r) : $(args) ] ;
+    return [ make-binder $(rulename) [ CALLER_MODULE ] : $(args) ] ;
+}
+
+class extensions/bind--protect : extensions/bind--base
+{
+    rule __init__ ( [binding-rule] b )
+    {
+        extensions/bind--base.__init__ ;
+        self.b = $(b) ;
+    }
+
+    rule exec ( * )
+    {
+        local a = [ class.new vector ] ;
+        for local i in $(self.range)
+        {
+            $(a).push-back [ class.new vector $($(i)) ] ;
+        }
+
+        return [ $(self.b)-vector $(a) ] ;
+    }
+}
+
+rule protect ( b )
+{
+    local p = [ class.new extensions/bind--protect $(b) ] ;
+    return $(p).exec ;
+}
+
+rule protected-binding ( rulename arg * : * )
+{
+    local args = [ class.new vector [ class.new vector $(arg) ] ] ;
+    for local i in [ numbers.range 2 19 ]
+    {
+        $(args).push-back [ class.new vector $($(i)) ] ;
+    }
+
+    return [ protect [ make-binder $(rulename) [ CALLER_MODULE ] : $(args) ] ] ;
+}
+
+rule __test__ ( )
+{
+    import assert ;
+    import numbers ;
+    import sequence : join reverse transform ;
+
+    local greater = [ binding numbers.less [ binding reverse [ _1 ] ] ] ;
+    assert.true $(greater) 2 1 ;
+
+    local t = [ binding transform [ protected-binding join [ _1 ] _x ] : [ _1 ] ] ;
+    assert.result f_x g_x h_x : $(t) f g h ;
 }
