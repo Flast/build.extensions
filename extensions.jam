@@ -10,6 +10,8 @@ import set ;
 .$(__name__)-already-initialized = ;
 
 .$(__name__)-subdirs =
+  build
+  tools
   util
   ;
 
@@ -25,20 +27,25 @@ local rule root ( )
 
 rule prefix ( module-name )
 {
-    return $(__name__):$(module-name) ;
+    return $(__name__)!$(module-name) ;
+}
+
+local rule export-rules ( target-modules + )
+{
+    # To be able to use rules in each extensions, import rules as under
+    # 'extensions' module.
+    local rules = import prefix root using ;
+    for local m in $(target-modules)
+    {
+        IMPORT $(__name__) : $(rules) : [ prefix $(m) ] : extensions.$(rules) ;
+    }
 }
 
 # In pre-import/import-really, use extensions/original prefix to avoid polluting
 # caller-module's namespace.
 local rule pre-import ( module-names + : search * : caller-module )
 {
-    # To be able to use rules in each extensions, import rules as under
-    # 'extensions' module.
-    local rules = import root prefix ;
-    for local m in $(module-names)
-    {
-        IMPORT $(__name__) : $(rules) : [ prefix $(m) ] : extensions.$(rules) ;
-    }
+    export-rules $(module-names) ;
 
     IMPORT modules : load : $(caller-module)
       : extensions/original/modules.load ;
@@ -102,3 +109,13 @@ rule import ( module-names + : rule-opt * : rename-opt * )
     import-really $(module-names) : $(rule-opt) : $(rename-opt)
       : $(caller) ;
 }
+
+rule using ( toolset-module : * )
+{
+    import $(toolset-module) ;
+    toolset-module = [ prefix $(toolset-module) ] ;
+    $(toolset-module).init $(2) : $(3) : $(4) : $(5) : $(6) : $(7) : $(8) : $(9) ;
+}
+
+import types/register ;
+import build-request ;

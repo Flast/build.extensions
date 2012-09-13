@@ -1,0 +1,17 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import path ;
+import type ;
+
+.types-root = [ path.join [ extensions.root ] tools types ] ;
+.sibling-jamfiles = [ path.glob $(.types-root) : *.jam ] ;
+.sibling-modules = [ MATCH ^(.*)\.jam$ : $(.sibling-jamfiles:D=) ] ;
+
+for m in types/$(.sibling-modules)
+{
+    IMPORT types/register : type : [ extensions.prefix $(m) ] : type ;
+    extensions.import $(m) ;
+}
