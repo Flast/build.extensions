@@ -5,6 +5,7 @@
 import build-request ;
 import feature ;
 import modules ;
+import regex ;
 import sequence ;
 
 .build-request = extensions/original/bulid-request ;
@@ -12,16 +13,10 @@ import sequence ;
 
 local rule handle-toolset-configurations ( argv * )
 {
-    local toolsets ;
-    for local a in $(argv)
-    {
-        local t = [ MATCH ^--ext-toolset=(.*)$ : $(a) ]
-          [ MATCH ^ext-toolset=(.*)$ : $(a) ] ;
-        if $(t)
-        {
-            toolsets += $(t) ;
-        }
-    }
+    local toolsets = [ regex.split-list
+                          [ MATCH ^--ext-toolset=(.*)$ : $(argv) ]
+                          [ MATCH   ^ext-toolset=(.*)$ : $(argv) ]
+                        : , ] ;
 
     local extra-properties ;
     for local t in $(toolsets)
