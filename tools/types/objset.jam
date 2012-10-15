@@ -1,0 +1,117 @@
+#             Copyright Kohei Takahashi 2012.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+import "class" ;
+import feature ;
+import generators ;
+import project ;
+import targets ;
+import type ;
+
+
+type.register OBJSET ;
+
+# <objset> will be appended by objset rule to avoid ambiguity.
+#
+#   a.cpp.CPP ->          a.o.OBJ         -> a.out.EXE
+#              \                          /
+#               \-> a.OBJSET -> a.o.OBJ -/    <= Ignoring this path
+feature.feature objset : : free optional ;
+
+class objset-target-class : typed-target
+{
+    rule __init__ ( name : project : sources * : requirements *
+        : default-build * : usage-requirements * )
+    {
+        typed-target.__init__ $(name) : $(project) : OBJSET : $(sources)
+          : $(requirements) : $(default-build) : $(usage-requirements) ;
+    }
+
+    rule compute-usage-requirements ( subvariant )
+    {
+        local base = [ typed-target.compute-usage-requirements $(subvariant) ] ;
+        return [ $(base).add [ $(subvariant).sources-usage-requirements ] ] ;
+    }
+}
+
+# Works like notfile-target however set type and source targets.
+# Note: Derived by abstract-file-target because notfile-target constructor
+# doesn't take type parameter.
+class objset-target : abstract-file-target
+{
+    rule __init__ ( name : type ? : project : sources * )
+    {
+        abstract-file-target.__init__ $(name) : $(type) : $(project) ;
+        self.sources = $(sources) ;
+    }
+
+    rule path ( )
+    {
+        return ;
+    }
+
+    rule actualize-location ( target )
+    {
+        NOTFILE $(target) ;
+        ALWAYS $(target) ;
+        NOUPDATE $(target) ;
+    }
+
+    rule sources ( )
+    {
+        return $(self.sources) ;
+    }
+}
+
+class objset-generator : generator
+{
+    rule generated-targets ( sources + : property-set : project name )
+    {
+        if [ $(property-set).get <objset> ]
+        {
+            local targets ;
+            for local t in $(self.target-types)
+            {
+                targets += [ class.new objset-target $(name) : $(t) : $(project)
+                              : $(sources) ] ;
+            }
+            return $(targets) ;
+        }
+        else
+        {
+            IMPORT generators : indent : $(__name__) : indent ;
+            generators.dout [ indent ] "ignoring multi-path" ;
+        }
+    }
+}
+
+generators.register [ class.new objset-generator .no-action true : OBJ : OBJSET ] ;
+
+
+class objunset-generator : generator
+{
+    rule generated-targets ( sources + : property-set : project name ? )
+    {
+        local targets ;
+        for local s in $(sources)
+        {
+            targets += [ $(sources).sources ] ;
+        }
+        return $(targets) ;
+    }
+}
+
+generators.register [ class.new objunset-generator .no-action : OBJSET : OBJ ] ;
+
+
+rule objset ( name : sources * : requirements * : default-build *
+  : usage-requirements * )
+{
+    requirements += <objset>true ;
+    return [ targets.create-metatarget objset-target-class
+              : [ project.current ] : $(name) : $(sources) : $(requirements)
+              : $(default-build) : $(usage-requirements) ] ;
+}
+IMPORT $(__name__) : objset : : objset ;
