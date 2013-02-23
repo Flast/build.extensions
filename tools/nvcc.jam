@@ -1,4 +1,4 @@
-#             Copyright Kohei Takahashi 2012.
+#             Copyright Kohei Takahashi 2012-2013.
 #    Distributed under the Boost Software License, Version 1.0.
 #       (See accompanying file LICENSE_1_0.txt or copy at
 #             http://www.boost.org/LICENSE_1_0.txt)
@@ -18,9 +18,6 @@ if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
 }
 
 feature.extend toolset : $(__name__) ;
-toolset.inherit-generators $(__name__) : unix : unix.link unix.link.dll ;
-toolset.inherit $(__name__) : unix ;
-
 generators.override $(__name__).prebuilt : builtin.lib-generator ;
 generators.override $(__name__).prebuilt : builtin.prebuilt ;
 generators.override $(__name__).searched-lib-generator : searched-lib-generator ;
@@ -42,103 +39,122 @@ local rule handle-options ( toolset : condition * : command * : options * )
       : [ feature.get-values cuflags : $(options) ] : unchecked ;
 }
 
-class CUDA-compiling-generator : C-compiling-generator
-{
-}
-
-rule register-cuda-compiler ( id : source-types + : target-types +
-  : requirements * : optional-properties * )
-{
-    generators.register [ new CUDA-compiling-generator $(id) : $(source-types)
-                            : $(target-types) : <toolset>$(__name__) $(requirements)
-                            : $(optional-properties) ] ;
-}
-
-IMPORT $(__name__) : register-cuda-compiler : : generators.register-cuda-compiler ;
-
-# FIXME: target feature should be non-free feature.
-feature target : ptx cubin : free optional ;
-flags $(__name__).compile OPTIONS <target>ptx : --ptx ;
-flags $(__name__).compile OPTIONS <target>cubin : --cubin ;
-
-generators.register-cuda-compiler $(__name__).compile.cu : CUDA : OBJ ;
-generators.register-cuda-compiler $(__name__).compile.cu : CUDA : PTX : <target>ptx ;
-generators.register-cuda-compiler $(__name__).compile.cu : CUDA : CUBIN : <target>cubin ;
-
-# FIXME: These are not very good way to change output suffix.
-type.set-generated-target-suffix OBJ : <toolset>$(__name__) : o ;
-type.set-generated-target-suffix OBJ : <toolset>$(__name__) <target>ptx : ptx ;
-type.set-generated-target-suffix OBJ : <toolset>$(__name__) <target>cubin : cubin ;
 
 flags $(__name__).compile OPTIONS <address-model>32 : -m32 ;
 flags $(__name__).compile OPTIONS <address-model>64 : -m64 ;
 
 flags $(__name__).compile OPTIONS <debug-symbols>on : -g ;
 
-feature device-debug-symbols : off on : propagated ;
-flags $(__name__).compile OPTIONS <device-debug-symbols>on : -G ;
-
-feature gpu-architecture : : free optional ;
-flags $(__name__).compile OPTIONS <gpu-architecture> ;
-rule setup-gpu-architecture ( targets * : sources * : properties * )
-{
-    local arch = [ feature.get-values gpu-architecture : $(properties) ] ;
-    if $(arch)
-    {
-        ECHO "** warning ** nvcc.jam: sorry, not impremented GPU architecture selector yet." ;
-    }
-}
-
-feature gpu-code : : free optional ;
-flags $(__name__).compile OPTIONS <gpu-code> ;
-rule setup-gpu-code ( targets * : sources * : properties * )
-{
-    local code = [ feature.get-values gpu-code : $(properties) ] ;
-    if $(code)
-    {
-        ECHO "** warning ** nvcc.jam: sorry, not impremented GPU code selector yet." ;
-    }
-}
-
 flags $(__name__).compile DEFINES <define> ;
 flags $(__name__).compile INCLUDES <include> ;
 
-feature cuflags : : free optional ;
-flags $(__name__).compile.cu OPTIONS <cuflags> ;
 
-rule compile.cu ( targets * : sources * : properties * )
+generators.register-c-compiler $(__name__).compile.c
+                                : C
+                                : OBJ
+                                : <toolset>$(__name__) ;
+generators.register-c-compiler $(__name__).compile.c.preprocess
+                                : C
+                                : PREPROCESSED_C
+                                : <toolset>$(__name__) ;
+generators.register-c-compiler $(__name__).compile.c++
+                                : CPP
+                                : OBJ
+                                : <toolset>$(__name__) ;
+generators.register-c-compiler $(__name__).compile.c++.preprocess
+                                : CPP
+                                : PREPROCESSED_CPP
+                                : <toolset>$(__name__) ;
+
+flags $(__name__).compile.c USER_OPTIONS <cflags> ;
+flags $(__name__).compile.c++ USER_OPTIONS <cxxflags> ;
+
+actions compile.c
 {
-    local target = [ feature.get-values target : $(properties) ] ;
-    switch $(target)
-    {
-        case "" :
-            OPTIONS on $(targets) += -c ;
-        case "ptx" :
-        case "cubin" :
-        case * :
-            EXIT "** error ** nvcc.jam: invalid target (" $(target) ")." ;
-    }
-
-    setup-gpu-architecture $(targets) : $(sources) : $(properties) ;
-    setup-gpu-code $(targets) : $(sources) : $(properties) ;
+    "$(CONFIG_COMMAND)" -x c $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
 }
+actions compile.c.preprocess
+{
+    "$(CONFIG_COMMAND)" -x c $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)"
+}
+
+actions compile.c++
+{
+    "$(CONFIG_COMMAND)" -x c++ $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
+}
+actions compile.c++.preprocess
+{
+    "$(CONFIG_COMMAND)" -x c++ $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)"
+}
+
+
+generators.register-c-compiler $(__name__).compile.cu
+                                : CUDA
+                                : OBJ
+                                : <toolset>$(__name__) ;
+generators.register-c-compiler $(__name__).compile.cu.ptx
+                                : CUDA
+                                : PTX
+                                : <toolset>$(__name__) ;
+generators.register-c-compiler $(__name__).compile.cu.cubin
+                                : CUDA
+                                : CUBIN
+                                : <toolset>$(__name__) ;
+
+feature cuflags : : free optional ;
+feature device-debug-symbols : off on : propagated ;
+
+flags $(__name__).compile.cu USER_OPTIONS <cuflags> ;
+flags $(__name__).compile.cu OPTIONS <device-debug-symbols>on : -G ;
 
 actions compile.cu
 {
-    $(CONFIG_COMMAND) $(OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
 }
+
+actions compile.cu.ptx
+{
+    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" --ptx -o "$(<)" "$(>)"
+}
+
+actions compile.cu.cubin
+{
+    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" --cubin -o "$(<)" "$(>)"
+}
+
+
+generators.register [ new unix-linking-generator $(__name__).link
+                        : OBJ LIB
+                        : EXE
+                        : <toolset>$(__name__) ] ;
+generators.register [ new unix-linking-generator $(__name__).link.dll
+                        : OBJ LIB
+                        : SHARED_LIB
+                        : <toolset>$(__name__) ] ;
 
 flags $(__name__).link LINKPATH <library-path> ;
 flags $(__name__).link LIBRARIES <library-file> ;
 flags $(__name__).link OPTIONS <linkflags> ;
-#flags $(__name__).link OPTIONS <link>shared : --shared ;
-#flags $(__name__).link OPTIONS <runtime-link>shared : --shared ;
-
-#rule link ( targets * : sources * : properties * )
-#{
-#}
 
 actions link bind LIBRARIES
 {
-    $(CONFIG_COMMAND) $(OPTIONS) -L"$(LINKPATH)" -o "$(<)" "$(>)" $(LIBRARIES)
+    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" "$(>)" $(LIBRARIES)
+}
+
+actions link.dll bind LIBRARIES
+{
+    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" --lib --shared -o "$(<)" "$(>)" $(LIBRARIES)
+}
+
+
+generators.register [ new unix-archive-generator $(__name__).archive
+                        : OBJ
+                        : STATIC_LIB
+                        : <toolset>$(__name__) ] ;
+
+flags $(__name__).archive AROPTIONS <archiveflags> ;
+
+actions piecemeal archive
+{
+    "$(CONFIG_COMMAND)" $(AROPTIONS) --lib -o "$(<)" "$(>)" $(LIBRARIES)
 }
