@@ -10,7 +10,6 @@ import feature : feature ;
 import generators ;
 import modules ;
 import toolset : flags ;
-import type ;
 import unix ;
 
 if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
@@ -168,7 +167,7 @@ actions link bind LIBRARIES
 
 actions link.dll bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" --lib --shared -o "$(<)" "$(>)" $(LIBRARIES)
+    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" --shared -o "$(<)" "$(>)" $(LIBRARIES)
 }
 
 
