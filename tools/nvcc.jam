@@ -169,16 +169,18 @@ generators.register [ new unix-linking-generator $(__name__).link.dll
 
 flags $(__name__).link USER_OPTIONS <linkflags> ;
 flags $(__name__).link LINKPATH <library-path> ;
+flags $(__name__).link FINDLIBS-ST <find-static-library> ;
+flags $(__name__).link FINDLIBS-SA <find-shared-library> ;
 flags $(__name__).link LIBRARIES <library-file> ;
 
 actions link bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" $(OPTIONS) $(USER_OPTIONS)
+    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" -Xlinker$(.SPACE)-Bstatic,-l$(FINDLIBS-ST:J=,-l) -Xlinker$(.SPACE)-Bdynamic,-l$(FINDLIBS-SA:J=,-l) $(OPTIONS) $(USER_OPTIONS)
 }
 
 actions link.dll bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" --shared -o "$(<)" "$(>)" "$(LIBRARIES)" $(OPTIONS) $(USER_OPTIONS)
+    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" --shared -o "$(<)" "$(>)" "$(LIBRARIES)" -Xlinker$(.SPACE)-Bstatic,-l$(FINDLIBS-ST:J=,-l) -Xlinker$(.SPACE)-Bdynamic,-l$(FINDLIBS-SA:J=,-l) $(OPTIONS) $(USER_OPTIONS)
 }
 
 
