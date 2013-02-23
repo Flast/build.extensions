@@ -17,6 +17,9 @@ if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
     .debug-configuration = true ;
 }
 
+.SPACE = " " ;
+
+
 feature.extend toolset : $(__name__) ;
 generators.override $(__name__).prebuilt : builtin.lib-generator ;
 generators.override $(__name__).prebuilt : builtin.prebuilt ;
@@ -64,10 +67,18 @@ local rule handle-options ( toolset : condition * : command * : options * )
 }
 
 
+flags $(__name__).compile COMPILER_OPTIONS <warnings>off : -w ;
+flags $(__name__).compile COMPILER_OPTIONS <warnings>on  : -Wall ;
+
+flags $(__name__).compile COMPILER_OPTIONS <optimization>off   : -O0 ;
+flags $(__name__).compile COMPILER_OPTIONS <optimization>speed : -O3 ;
+flags $(__name__).compile COMPILER_OPTIONS <optimization>space : -Os ;
+
 flags $(__name__).compile OPTIONS <address-model>32 : -m32 ;
 flags $(__name__).compile OPTIONS <address-model>64 : -m64 ;
 
 flags $(__name__).compile OPTIONS <debug-symbols>on : -g ;
+flags $(__name__).compile OPTIONS <profiling>on : -pg ;
 
 flags $(__name__).compile DEFINES <define> ;
 flags $(__name__).compile INCLUDES <include> ;
@@ -95,20 +106,20 @@ flags $(__name__).compile.c++ USER_OPTIONS <cxxflags> ;
 
 actions compile.c
 {
-    "$(CONFIG_COMMAND)" -x c $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x c -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 actions compile.c.preprocess
 {
-    "$(CONFIG_COMMAND)" -x c $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x c -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 actions compile.c++
 {
-    "$(CONFIG_COMMAND)" -x c++ $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x c++ -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 actions compile.c++.preprocess
 {
-    "$(CONFIG_COMMAND)" -x c++ $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x c++ -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 
@@ -133,17 +144,17 @@ flags $(__name__).compile.cu OPTIONS <device-debug-symbols>on : -G ;
 
 actions compile.cu
 {
-    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x cu -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -Xptxas=$(PTX_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 actions compile.cu.ptx
 {
-    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" --ptx -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x cu -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -Xptxas=$(PTX_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" --ptx -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 actions compile.cu.cubin
 {
-    "$(CONFIG_COMMAND)" -x cu $(OPTIONS) $(USER_OPTIONS) -D$(DEFINES) -I"$(INCLUDES)" --cubin -o "$(<)" "$(>)"
+    "$(CONFIG_COMMAND)" -x cu -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -Xptxas=$(PTX_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" --cubin -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 
@@ -156,18 +167,18 @@ generators.register [ new unix-linking-generator $(__name__).link.dll
                         : SHARED_LIB
                         : <toolset>$(__name__) ] ;
 
+flags $(__name__).link USER_OPTIONS <linkflags> ;
 flags $(__name__).link LINKPATH <library-path> ;
 flags $(__name__).link LIBRARIES <library-file> ;
-flags $(__name__).link OPTIONS <linkflags> ;
 
 actions link bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" "$(>)" $(LIBRARIES)
+    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 actions link.dll bind LIBRARIES
 {
-    "$(CONFIG_COMMAND)" $(OPTIONS) $(USER_OPTIONS) -L"$(LINKPATH)" --shared -o "$(<)" "$(>)" $(LIBRARIES)
+    "$(CONFIG_COMMAND)" -Xlinker$(.SPACE)$(LINKER_OPTIONS:J=,) -L"$(LINKPATH)" --shared -o "$(<)" "$(>)" "$(LIBRARIES)" $(OPTIONS) $(USER_OPTIONS)
 }
 
 
@@ -180,5 +191,5 @@ flags $(__name__).archive AROPTIONS <archiveflags> ;
 
 actions piecemeal archive
 {
-    "$(CONFIG_COMMAND)" $(AROPTIONS) --lib -o "$(<)" "$(>)" $(LIBRARIES)
+    "$(CONFIG_COMMAND)" $(AROPTIONS) -Xarchive$(.SPACE)$(ARCHIVE_OPTIONS:J=,) --lib -o "$(<)" "$(>)" "$(LIBRARIES)"
 }
