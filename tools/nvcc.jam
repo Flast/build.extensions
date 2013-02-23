@@ -5,6 +5,7 @@
 
 import "class" : new ;
 import common ;
+import errors ;
 import feature : feature ;
 import generators ;
 import modules ;
@@ -22,11 +23,35 @@ generators.override $(__name__).prebuilt : builtin.lib-generator ;
 generators.override $(__name__).prebuilt : builtin.prebuilt ;
 generators.override $(__name__).searched-lib-generator : searched-lib-generator ;
 
-rule init ( version ? : command * : options * )
+rule init ( command * : options * )
 {
-    local condition = [ common.check-init-parameters $(__name__) : version $(version) ] ;
+    local tool-command ;
+    if $(command)
+    {
+        tool-command = [ common.get-invocation-command-nodefault $(__name__) : nvcc : $(command) ] ;
+        if ! $(tool-command)
+        {
+            errors.error "toolset nvcc initialization:"
+              : "provided command '$(command)' not found"
+              : "initialized from" [ errors.nearest-user-location ] ;
+        }
+    }
+    else
+    {
+        tool-command = [ common.get-invocation-command-nodefault $(__name__) : nvcc ] ;
+        if ! $(tool-command)
+        {
+            errors.error "toolset nvcc initialization:"
+              : "default command 'nvcc' not found"
+              : "initialized from" [ errors.nearest-user-location ] ;
+        }
+    }
+    local command = $(tool-command) ;
 
-    local command = [ common.get-invocation-command $(__name__) : nvcc : $(command) ] ;
+    local version = [ MATCH "release ([0-9].[0-9])" : [ SHELL "$(command) -V" ] ] ;
+
+    local condition = [ common.check-init-parameters $(__name__)
+                          : version $(version) ] ;
 
     handle-options $(__name__) : $(condition) : $(command) : $(options) ;
 }
