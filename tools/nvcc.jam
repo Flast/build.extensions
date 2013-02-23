@@ -83,6 +83,13 @@ flags $(__name__).compile OPTIONS <profiling>on : -pg ;
 flags $(__name__).compile DEFINES <define> ;
 flags $(__name__).compile INCLUDES <include> ;
 
+local rule setup-fpic ( targets * : properties * )
+{
+    if [ feature.get-values link : $(properties) ] = shared
+    {
+        COMPILER_OPTIONS on $(targets) += -fPIC ;
+    }
+}
 
 generators.register-c-compiler $(__name__).compile.c
                                 : C
@@ -104,6 +111,10 @@ generators.register-c-compiler $(__name__).compile.c++.preprocess
 flags $(__name__).compile.c USER_OPTIONS <cflags> ;
 flags $(__name__).compile.c++ USER_OPTIONS <cxxflags> ;
 
+rule compile.c ( targets * : sources * : properties * )
+{
+    setup-fpic $(targets) : $(properties) ;
+}
 actions compile.c
 {
     "$(CONFIG_COMMAND)" -x c -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
@@ -113,6 +124,10 @@ actions compile.c.preprocess
     "$(CONFIG_COMMAND)" -x c -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -E -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
 }
 
+rule compiler.c++ ( targets * : sources * : properties * )
+{
+    setup-fpic $(targets) : $(properties) ;
+}
 actions compile.c++
 {
     "$(CONFIG_COMMAND)" -x c++ -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
@@ -142,6 +157,10 @@ feature device-debug-symbols : off on : propagated ;
 flags $(__name__).compile.cu USER_OPTIONS <cuflags> ;
 flags $(__name__).compile.cu OPTIONS <device-debug-symbols>on : -G ;
 
+rule compile.cu ( targets * : sources * : properties * )
+{
+    setup-fpic $(targets) : $(properties) ;
+}
 actions compile.cu
 {
     "$(CONFIG_COMMAND)" -x cu -Xcompiler$(.SPACE)$(COMPILER_OPTIONS:J=,) -Xptxas=$(PTX_OPTIONS:J=,) -D$(DEFINES) -I"$(INCLUDES)" -c -o "$(<)" "$(>)" $(OPTIONS) $(USER_OPTIONS)
