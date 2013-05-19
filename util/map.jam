@@ -1,0 +1,38 @@
+#             Copyright Kohei Takahashi 2013.
+#    Distributed under the Boost Software License, Version 1.0.
+#       (See accompanying file LICENSE_1_0.txt or copy at
+#             http://www.boost.org/LICENSE_1_0.txt)
+
+class map
+{
+    import errors ;
+
+    rule __init__ ( )
+    {
+    }
+
+    rule contains ( key )
+    {
+        return $($(key)) ;
+    }
+
+    rule add ( key : value )
+    {
+        if [ contains $(key) ]
+        {
+            errors.error "The key $(key) already exists" ;
+        }
+        $(key) = true ;
+        self.result.$(key) = $(value) ;
+    }
+
+    rule get ( key )
+    {
+        if ! [ contains $(key) ]
+        {
+            import errors ;
+            errors.error "The key $(key) does not exist" ;
+        }
+        return $(self.result.$(key)) ;
+    }
+}
