@@ -1,11 +1,141 @@
-#             Copyright Kohei Takahashi 2012.
+#             Copyright Kohei Takahashi 2012 - 2013.
 #    Distributed under the Boost Software License, Version 1.0.
 #       (See accompanying file LICENSE_1_0.txt or copy at
 #             http://www.boost.org/LICENSE_1_0.txt)
 
+import "class" ;
 import errors ;
 import os ;
 import path ;
+import scanner ;
+import targets ;
+import virtual-target ;
+extensions.import map ;
+
+class passwd-scanner : scanner
+{
+    rule __init__ ( map )
+    {
+        self.map = $(map) ;
+    }
+
+    rule pattern ( )
+    {
+        return "^(.*)$" ;
+    }
+
+    rule process ( target : matches * : binding )
+    {
+        for local line in $(matches)
+        {
+            local m = [ MATCH "^([^:]+):[^:]+:[0-9]+:[0-9]+:[^:]*:([^:]+):.*$"
+                          : $(line) ] ;
+            if ! $(m[2])
+            {
+                import errors : error ;
+                error "Home directory is not set" ;
+            }
+            $(self.map).add $(m[1]) : $(m[2]) ;
+        }
+    }
+}
+
+rule .no-action ( * )
+{
+    # do nothing
+}
+
+class passwd-file-target : abstract-file-target
+{
+    import "class" ;
+    import path ;
+
+    rule __init__ ( file : project : path : map : * )
+    {
+        local a = [ class.new action : extensions!path..no-action ] ;
+        abstract-file-target.__init__ $(file) true : : $(project) : $(a) ;
+        self.map = $(map) ;
+        self.path = $(path) ;
+    }
+
+    rule path ( )
+    {
+        return [ path.native $(self.path) ] ;
+    }
+
+    rule actualize-location ( target )
+    {
+        local path = [ path ] ;
+        LOCATE on $(target) = $(path:D) ;
+    }
+
+    rule actualize ( scanner ? )
+    {
+        if ! $(scanner)
+        {
+            scanner = [ class.new passwd-scanner $(self.map) ] ;
+        }
+        return [ abstract-file-target.actualize $(scanner) ] ;
+    }
+}
+
+rule from-file ( file : file-loc : project : map )
+{
+    import type ;  # Had to do this here to break a circular dependency.
+
+    local path = [ path.root [ path.root $(file) $(file-loc) ] [ path.pwd ] ] ;
+
+    if $(.files.$(path))
+    {
+        return $(.files.$(path)) ;
+    }
+    else
+    {
+        local name = [ path.make $(file) ] ;
+        local result = [ class.new passwd-file-target $(file) : $(project) : $(file-loc) : $(map) ] ;
+
+        .files.$(path) = $(result) ;
+        return $(result) ;
+    }
+}
+
+import feature ;
+feature.feature map : : free ;
+
+class passwd-target : basic-target
+{
+    import feature ;
+    import extensions ;
+    extensions.import path ;
+
+    rule __init__ ( name : project-target : file ?
+      : requirements * : default-build * : usage-requirements * )
+    {
+        basic-target.__init__ $(name) : $(project-target) : $(file:E=/etc/passwd)
+          : $(requirements) : $(default-build) : $(usage-requirements) ;
+        self.map = [ feature.get-values <map> : [ $(requirements).raw ] ] ;
+    }
+
+    rule generate ( properties )
+    {
+        return [ property-set.empty ]
+          [ extensions!path.from-file [ name ] : $(self.sources) : [ project ] : $(self.map) ] ;
+    }
+}
+
+local rule import-path.make-target ( )
+{
+    import modules ;
+    import project ;
+
+    local here = [ modules.binding $(__name__) ] ;
+    project.push-current [ project.current ] ;
+    project.load [ path.join [ path.make $(here:D) ] path.make ] ;
+    local pt = [ project.current ] ;
+    project.pop-current ;
+
+    return $(pt) ;
+}
 
 rule make ( native )
 {
@@ -13,16 +143,45 @@ rule make ( native )
 
     # tilde-prefix will replace to home dir in UNIX system.
     local tilde = [ MATCH ^(~)([^\/]*)(.*) : $(native) ] ;
-    if $(tilde[1])
+    if ! $(tilde[1])
     {
-        local home = [ os.home-directories ] ;
-        if $(tilde[2])
-        {
-            errors.error "~user does not support yet" ;
-        }
-        # tilde[3] will expand slash-prefixed or none.
-        native = $(home:T)$(tilde[3]:E=) ;
+        return $(native) ;
     }
 
-    return $(native) ;
+    local home = ;
+    if ! $(tilde[2])
+    {
+        home = [ os.home-directories ] ;
+    }
+    else
+    {
+        if ! $(.map.homedir)
+        {
+            .map.homedir = [ class.new map ] ;
+            project-target = [ import-path.make-target ] ;
+
+            if [ os.on-unix ]
+            {
+                import property-set ;
+
+                local targets = [ targets.generate-from-reference
+                                      /build.extensions/util/path.make//passwd
+                                    : $(project-target)
+                                    : [ property-set.empty ] ] ;
+                UPDATE_NOW [ $(targets[2]).actualize ]
+                  : [ FILE_OPEN /dev/null : "w" ]
+                  : ignore-n
+                  : ignore-q
+                  ;
+            }
+            else
+            {
+                import errors ;
+                errors.error "tilde-prefixed path is supported only UNIX system" ;
+            }
+        }
+        home = [ $(.map.homedir).get $(tilde[2]) ] ;
+    }
+    # tilde[3] will expand slash-prefixed or none.
+    return $(home:T)$(tilde[3]:E=) ;
 }
