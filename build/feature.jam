@@ -1,0 +1,36 @@
+# XXX: Following modules/rules depends on build/feature.jam behaviour.
+# Thus, some later releases might not work.
+
+import feature ;
+import property ;
+
+rule extend-variant ( variant : explicit-properties * )
+{
+    property.validate $(explicit-properties) ;
+
+    local original = [ feature.expand <variant>$(variant) ] ;
+    # Drop first element since feature.expand always put non-expanded property first.
+    original = $(original[2-]) ;
+
+    explicit-properties = [ property.refine $(original)
+        : $(explicit-properties) ] ;
+
+    # explicit-properties = [ property.refine $(inherited)
+    #     : $(explicit-properties) ] ;
+
+    module feature
+    {
+        rule extend-compose ( composite-property : component-properties * )
+        {
+            local feature = $(composite-property:G) ;
+            if ! ( composite in [ attributes $(feature) ] )
+            {
+                import errors ;
+                errors.error "$(feature)" is not a composite feature ;
+            }
+
+            $(composite-property).components += $(component-properties) ;
+        }
+    }
+    feature.extend-compose <variant>$(variant) : $(explicit-properties) ;
+}
