@@ -225,13 +225,35 @@ rule protected-binding ( rulename arg * : * )
 
 rule __test__ ( )
 {
-    import assert ;
-    import numbers ;
-    import sequence : join reverse transform ;
+    local rules = binding protect protected-binding _1 ;
+    IMPORT [ CALLER_MODULE ]        : $(rules) :
+           extensions!bind.__test__ : $(rules) ;
 
-    local greater = [ binding numbers.less [ binding reverse [ _1 ] ] ] ;
-    assert.true $(greater) 2 1 ;
+    module extensions!bind.__test__
+    {
+        rule cat ( first : second )
+        {
+            return $(first)$(second) ;
+        }
 
-    local t = [ binding transform [ protected-binding join [ _1 ] _x ] : [ _1 ] ] ;
-    assert.result f_x g_x h_x : $(t) f g h ;
+        rule id ( id ? )
+        {
+            return $(id) ;
+        }
+
+        import assert ;
+        import numbers ;
+        import sequence : join reverse transform ;
+
+        local greater = [ binding numbers.less [ binding reverse [ _1 ] ] ] ;
+        assert.true $(greater) 2 1 ;
+
+        local c = [ binding cat [ binding id [ _1 ] ] :
+                                [ binding id [ _1 ] ] ] ;
+        assert.result aa : $(c) a ;
+        assert.result aa xx 11 : [ binding transform [ protect $(c) ] : a x 1 ] ;
+
+        local t = [ binding transform [ protected-binding join [ _1 ] _x ] : [ _1 ] ] ;
+        assert.result f_x g_x h_x : $(t) f g h ;
+    }
 }
